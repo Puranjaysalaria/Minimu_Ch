@@ -223,6 +223,11 @@ export class AgentOrchestrator {
       return `The previously discussed subscription price was ${topMemory.value} (recorded on ${topMemory.recorded_at.slice(0, 10)}).`;
     }
 
+    // 4b. Bookmarked source recall (specific query)
+    if (/bookmark|saved?\s*(?:source|link)|source\s*link/i.test(lower) && topMemory.predicate === 'bookmarked_source') {
+      return `You previously bookmarked the source: **${topMemory.value}** (recorded on ${topMemory.recorded_at.slice(0, 10)}).`;
+    }
+
     // 5. Broad needs, plans, and preferences recall with timestamps
     if (/need|plan|require|prefer|discussed|conservations|conversations|what did|what are|time|when/i.test(lower) || retrieval.scoredMemories.length > 1) {
       const bulletPoints = retrieval.scoredMemories.map(item => {

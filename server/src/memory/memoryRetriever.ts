@@ -55,6 +55,10 @@ export class MemoryRetriever {
       const subMems = this.memoryRepo.getBySubjectAndPredicate('subscription', 'price_per_month');
       candidates.push(...subMems);
     }
+    if (/bookmark|saved?\s*(?:link|source|url|website)|web\s*source/i.test(lower)) {
+      const bookmarkedMems = this.memoryRepo.getBySubjectAndPredicate('user', 'bookmarked_source');
+      candidates.push(...bookmarkedMems);
+    }
     // Broad recall for user needs, plans, preferences, or general memory inquiry
     if (
       /need|requirement|plan|prefer|discussed|told you|what do you know|remember|conservations|conversations|everything|about me|history/i.test(

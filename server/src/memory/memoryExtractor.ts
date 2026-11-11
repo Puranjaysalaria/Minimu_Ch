@@ -1,4 +1,5 @@
 import { MemoryRecord, MemoryRepository } from '../database/repositories/memoryRepo.js';
+import { MessageRepository } from '../database/repositories/messageRepo.js';
 
 export interface ExtractedFact {
   subject: string;
@@ -11,12 +12,15 @@ export interface ExtractedFact {
 }
 
 export class MemoryExtractor {
-  constructor(private memoryRepo: MemoryRepository) {}
+  constructor(
+    private memoryRepo: MemoryRepository,
+    private messageRepo?: MessageRepository
+  ) {}
 
   /**
    * Deterministic pattern extraction for high precision on common statements
    */
-  extractFromText(text: string): ExtractedFact[] {
+  extractFromText(text: string, conversationId?: string): ExtractedFact[] {
     const facts: ExtractedFact[] = [];
     const normalized = text.trim();
 
@@ -114,6 +118,74 @@ export class MemoryExtractor {
       });
     }
 
+    // 7. Bookmarks / Saved web sources in assistant confirmations or user notes
+    const bmSourceMatch = normalized.match(/\*{0,2}Bookmarked Source:?\*{0,2}\s*(?:\[([^\]]+)\]\(([^)]+)\)|([^\n\r*]+))/i);
+    if (bmSourceMatch) {
+      const title = bmSourceMatch[1] || bmSourceMatch[3];
+      const url = bmSourceMatch[2];
+      const val = url ? `${title.trim()} (${url.trim()})` : title.trim();
+      facts.push({
+        subject: 'user',
+        predicate: 'bookmarked_source',
+        value: val,
+        category: 'fact',
+        confidence: 0.99,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // Direct user bookmark statements: "bookmark this link: ...", "save this source: ..."
+    const directBmMatch = normalized.match(/(?:bookmark|save|note)\s+(?:this\s+)?(?:source|link|url|website|article):\s*([^\n\r]+)/i);
+    if (directBmMatch) {
+      facts.push({
+        subject: 'user',
+        predicate: 'bookmarked_source',
+        value: directBmMatch[1].trim(),
+        category: 'fact',
+        confidence: 0.99,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // User directive referencing earlier source: "note the first source you gave me and mark it as Bookmark"
+    if (
+      /(?:note|bookmark|mark|save)\s+(?:the\s+)?(?:first|1st|\d+)?\s*(?:one\s+)?source.*(?:bookmark|save|note)/i.test(normalized) ||
+      /mark\s+(?:it\s+)?as\s+bookmark/i.test(normalized)
+    ) {
+      if (this.messageRepo && conversationId) {
+        const msgs = this.messageRepo.getByConversationId(conversationId);
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          const m = msgs[i];
+          if (m.role === 'assistant') {
+            const metaCitations = (m.metadata as any)?.citations as Array<{ title: string; url: string }> | undefined;
+            if (metaCitations && metaCitations.length > 0) {
+              facts.push({
+                subject: 'user',
+                predicate: 'bookmarked_source',
+                value: `${metaCitations[0].title} (${metaCitations[0].url})`,
+                category: 'fact',
+                confidence: 0.99,
+                source_type: 'explicit_statement',
+              });
+              break;
+            }
+            const mdLinkMatch = m.content.match(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/);
+            if (mdLinkMatch) {
+              facts.push({
+                subject: 'user',
+                predicate: 'bookmarked_source',
+                value: `${mdLinkMatch[1]} (${mdLinkMatch[2]})`,
+                category: 'fact',
+                confidence: 0.99,
+                source_type: 'explicit_statement',
+              });
+              break;
+            }
+          }
+        }
+      }
+    }
+
     return facts;
   }
 
@@ -127,7 +199,7 @@ export class MemoryExtractor {
     messageId: string,
     turnTimestamp?: string
   ): MemoryRecord[] {
-    const facts = this.extractFromText(text);
+    const facts = this.extractFromText(text, conversationId);
     const recordedAt = turnTimestamp || new Date().toISOString();
     const savedRecords: MemoryRecord[] = [];
 

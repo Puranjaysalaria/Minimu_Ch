@@ -22,7 +22,7 @@ export class ConversationService {
     this.memoryRepo = new MemoryRepository(db);
     this.summaryRepo = new SummaryRepository(db);
     this.entityRepo = new EntityRepository(db);
-    this.extractor = new MemoryExtractor(this.memoryRepo);
+    this.extractor = new MemoryExtractor(this.memoryRepo, this.messageRepo);
     this.summarizer = new ConversationSummarizer(this.summaryRepo);
   }
 

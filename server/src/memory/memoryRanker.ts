@@ -74,6 +74,10 @@ export class MemoryRanker {
           matchReasons.push(`Category matches broad need: ${mem.category}`);
         }
       }
+      if (/bookmark|saved?\s*(?:link|source|url)|source\s*link/i.test(queryLower) && /bookmark|source/i.test(mem.predicate)) {
+        score += 45;
+        matchReasons.push('Intent: bookmarked source inquiry');
+      }
 
       // 3. Temporal relevance
       if (temporal.isTemporal) {
