@@ -45,7 +45,7 @@ export class GeminiClient {
   private modelName: string;
 
   constructor() {
-    this.modelName = config.geminiModel || 'gemini-2.5-flash';
+    this.modelName = config.geminiModel || 'gemini-3.6-flash';
     if (config.geminiApiKey) {
       this.ai = new GoogleGenAI({
         apiKey: config.geminiApiKey,

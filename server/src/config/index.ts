@@ -22,7 +22,7 @@ export const config: AppConfig = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
   tavilyApiKey: process.env.TAVILY_API_KEY || '',
   databasePath: process.env.DATABASE_PATH || './data/minimi.db',
   appTimezone: process.env.APP_TIMEZONE || 'Asia/Kolkata',
