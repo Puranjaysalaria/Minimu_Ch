@@ -118,6 +118,76 @@ export class MemoryExtractor {
       });
     }
 
+    // 6b. Laptop hardware specifications & requirements (GPU, Processor, RAM, Storage, etc.)
+    // GPU: e.g. "RTX 50 60 or above", "RTX 4060", "GeForce RTX 5070", "dedicated GPU"
+    const gpuMatch = normalized.match(/\b((?:geforce\s+)?(?:rtx|gtx)\s*[\d\s]+(?:\s*(?:ti|super))?(?:\s*or\s*(?:above|higher|better))?|radeon\s*rx\s*\d+)\b/i);
+    if (gpuMatch) {
+      // Normalize spacing like "50 60" to "5060"
+      const cleanGpu = gpuMatch[1].trim().replace(/(\d)\s+(\d)/g, '$1$2');
+      facts.push({
+        subject: 'laptop',
+        predicate: 'gpu_specs',
+        value: cleanGpu,
+        category: 'requirement',
+        confidence: 0.98,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // Processor / CPU: e.g. "Intel Core i7", "Ryzen 7", "processor Intel i9", "M3 Pro"
+    const cpuMatch = normalized.match(/(?:processor|cpu)\s*(?:is|should be|want|prefer|need)?\s*([a-zA-Z0-9\s\-]+)/i);
+    const cpuDirectMatch = normalized.match(/\b(intel\s+(?:core\s+)?(?:i[3579]|ultra\s*[579])[\w\-]*|amd\s+ryzen\s*[3579][\w\-]*|ryzen\s*[3579][\w\-]*|apple\s+m[1234](?:\s*(?:pro|max))?)\b/i);
+    const cpuVal = cpuDirectMatch ? cpuDirectMatch[1] : (cpuMatch ? cpuMatch[1] : null);
+    if (cpuVal && /intel|amd|ryzen|core|i[3579]|m[1234]/i.test(cpuVal)) {
+      facts.push({
+        subject: 'laptop',
+        predicate: 'processor',
+        value: cpuVal.trim(),
+        category: 'requirement',
+        confidence: 0.96,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // RAM: e.g. "16GB RAM", "ram 32 gb"
+    const ramMatch = normalized.match(/\b(\d+\s*gb)\s*(?:ram|memory)\b/i) || normalized.match(/\b(?:ram|memory)\s*(?:is|of)?\s*(\d+\s*gb)\b/i);
+    if (ramMatch) {
+      facts.push({
+        subject: 'laptop',
+        predicate: 'ram',
+        value: `${ramMatch[1].trim()} RAM`,
+        category: 'requirement',
+        confidence: 0.95,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // Storage: e.g. "1TB SSD", "512GB storage"
+    const storageMatch = normalized.match(/\b(\d+\s*(?:gb|tb))\s*(?:ssd|storage|nvme|drive)\b/i) || normalized.match(/\b(?:storage|ssd)\s*(?:is|of)?\s*(\d+\s*(?:gb|tb))\b/i);
+    if (storageMatch) {
+      facts.push({
+        subject: 'laptop',
+        predicate: 'storage',
+        value: `${storageMatch[1].trim()} SSD`,
+        category: 'requirement',
+        confidence: 0.95,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // General specifications: "specific specs: RTX 5060", "specs are ..."
+    const generalSpecMatch = normalized.match(/(?:specific\s+)?specs?\s*(?:are|is|want|need|of)?\s*:?\s*([^.\n]+)/i);
+    if (generalSpecMatch && !gpuMatch && !cpuVal) {
+      facts.push({
+        subject: 'laptop',
+        predicate: 'specs',
+        value: generalSpecMatch[1].trim(),
+        category: 'requirement',
+        confidence: 0.92,
+        source_type: 'explicit_statement',
+      });
+    }
+
     // 7. Bookmarks / Saved web sources in assistant confirmations or user notes
     const bmSourceMatch = normalized.match(/\*{0,2}Bookmarked Source:?\*{0,2}\s*(?:\[([^\]]+)\]\(([^)]+)\)|([^\n\r*]+))/i);
     if (bmSourceMatch) {

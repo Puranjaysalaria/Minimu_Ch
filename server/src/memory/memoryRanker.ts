@@ -78,6 +78,18 @@ export class MemoryRanker {
         score += 45;
         matchReasons.push('Intent: bookmarked source inquiry');
       }
+      if (/spec|gpu|rtx|gtx|graphics/i.test(queryLower) && /spec|gpu|graphics/i.test(mem.predicate)) {
+        score += 45;
+        matchReasons.push('Intent: GPU/specs inquiry');
+      }
+      if (/processor|cpu|intel|ryzen/i.test(queryLower) && /processor|cpu/i.test(mem.predicate)) {
+        score += 45;
+        matchReasons.push('Intent: processor inquiry');
+      }
+      if (/laptop/i.test(queryLower) && /laptop/i.test(mem.subject)) {
+        score += 15;
+        matchReasons.push('Subject: laptop attribute');
+      }
 
       // 3. Temporal relevance
       if (temporal.isTemporal) {

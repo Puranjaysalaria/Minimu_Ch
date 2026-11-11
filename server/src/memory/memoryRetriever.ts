@@ -59,6 +59,15 @@ export class MemoryRetriever {
       const bookmarkedMems = this.memoryRepo.getBySubjectAndPredicate('user', 'bookmarked_source');
       candidates.push(...bookmarkedMems);
     }
+    // Specifications, GPU, CPU, RAM, and hardware requirements
+    if (/spec|gpu|rtx|gtx|graphics|processor|cpu|intel|ryzen|ram|storage|ssd|display|screen|feature|hardware/i.test(lower)) {
+      const specMems = this.memoryRepo.getBySubjectAndPredicate('laptop', 'gpu_specs');
+      const procMems = this.memoryRepo.getBySubjectAndPredicate('laptop', 'processor');
+      const genSpecMems = this.memoryRepo.getBySubjectAndPredicate('laptop', 'specs');
+      const ramMems = this.memoryRepo.getBySubjectAndPredicate('laptop', 'ram');
+      const storageMems = this.memoryRepo.getBySubjectAndPredicate('laptop', 'storage');
+      candidates.push(...specMems, ...procMems, ...genSpecMems, ...ramMems, ...storageMems);
+    }
     // Broad recall for user needs, plans, preferences, or general memory inquiry
     if (
       /need|requirement|plan|prefer|discussed|told you|what do you know|remember|conservations|conversations|everything|about me|history/i.test(
@@ -83,21 +92,17 @@ export class MemoryRetriever {
         contextString += `Temporal Filter: ${temporal.description}\n`;
       }
 
-      for (const item of scoredMemories) {
-        const mem = item.memory;
+      for (let i = 0; i < scoredMemories.length; i++) {
+        const mem = scoredMemories[i].memory;
         const status = mem.valid_until ? `Superseded on ${mem.valid_until}` : 'Current / Active';
-        contextString += `- Fact ID: ${mem.id}\n`;
+        contextString += `- Memory #${i + 1} [${mem.category.toUpperCase()}]:\n`;
         contextString += `  Subject: ${mem.subject}\n`;
-        contextString += `  Predicate: ${mem.predicate}\n`;
+        contextString += `  Predicate: ${mem.predicate.replace(/_/g, ' ')}\n`;
         contextString += `  Value: ${mem.value}\n`;
         contextString += `  Category: ${mem.category}\n`;
-        contextString += `  Source Type: ${mem.source_type} (Confidence: ${mem.confidence})\n`;
         contextString += `  Recorded Date: ${mem.recorded_at} [Status: ${status}]\n`;
-        if (mem.source_conversation_id) {
-          contextString += `  Source Conversation: ${mem.source_conversation_id}\n`;
-        }
         if (mem.supersedes_id) {
-          contextString += `  Supersedes Earlier Fact ID: ${mem.supersedes_id}\n`;
+          contextString += `  Note: Supersedes an earlier recorded value\n`;
         }
         contextString += `\n`;
       }

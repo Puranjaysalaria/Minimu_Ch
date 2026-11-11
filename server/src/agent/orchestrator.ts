@@ -170,6 +170,13 @@ export class AgentOrchestrator {
       finalAnswer += this.citationService.formatCitationBlock(collectedCitations);
     }
 
+    // Strip any leaked internal raw UUIDs or database IDs from the assistant output
+    finalAnswer = finalAnswer
+      .replace(/\[[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\]/g, '')
+      .replace(/\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g, '')
+      .replace(/Fact\s*ID:\s*[^\n\r]+/gi, '')
+      .trim();
+
     // 6. Persist assistant reply with metadata
     const { message: assistantRecord } = this.conversationService.addMessage({
       conversationId,
