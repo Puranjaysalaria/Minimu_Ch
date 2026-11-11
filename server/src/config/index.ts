@@ -3,6 +3,8 @@ import path from 'path';
 
 // Load environment variables from root or local .env
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config(); // fallback
 
 export interface AppConfig {
