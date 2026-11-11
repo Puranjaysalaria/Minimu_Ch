@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.env
+*.local
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.cache/
+*.log
