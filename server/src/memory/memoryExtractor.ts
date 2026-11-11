@@ -256,6 +256,124 @@ export class MemoryExtractor {
       }
     }
 
+    // 8. Location & City
+    const locationMatch = normalized.match(/(?:i\s+live\s+in|i'm\s+based\s+in|i\s+moved\s+to|located\s+in)\s+([a-zA-Z\s]+)/i);
+    if (locationMatch && !/buying|laptop|finding/i.test(locationMatch[1])) {
+      facts.push({
+        subject: 'user',
+        predicate: 'location',
+        value: locationMatch[1].trim(),
+        category: 'fact',
+        confidence: 0.95,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // 9. Profession / Role / Company
+    const workMatch = normalized.match(/(?:i\s+work\s+as\s+(?:an?|the)?|i\s+am\s+(?:an?|the)?)\s+([a-zA-Z\s]+?)(?:\s+at\s+([a-zA-Z0-9\s]+))?(?:\.|$)/i);
+    if (workMatch && !/planning|hoping|looking|wanting|trying/i.test(workMatch[1])) {
+      const role = workMatch[1].trim();
+      if (/engineer|developer|designer|manager|student|architect|scientist|doctor|consultant|founder|analyst|writer|photographer/i.test(role)) {
+        facts.push({
+          subject: 'user',
+          predicate: 'profession',
+          value: role,
+          category: 'fact',
+          confidence: 0.95,
+          source_type: 'explicit_statement',
+        });
+        if (workMatch[2]) {
+          facts.push({
+            subject: 'user',
+            predicate: 'company',
+            value: workMatch[2].trim(),
+            category: 'fact',
+            confidence: 0.95,
+            source_type: 'explicit_statement',
+          });
+        }
+      }
+    }
+    const companyMatch = normalized.match(/(?:i\s+work\s+at|my\s+company\s+is)\s+([a-zA-Z0-9\s]+)/i);
+    if (companyMatch) {
+      facts.push({
+        subject: 'user',
+        predicate: 'company',
+        value: companyMatch[1].trim(),
+        category: 'fact',
+        confidence: 0.95,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // 10. Explicit "Remember that X", "Keep in mind that X", "Note that X"
+    const rememberMatch = normalized.match(/(?:remember\s+(?:that)?|keep\s+in\s+mind\s+(?:that)?|note\s+that)\s+([^.]+)/i);
+    if (rememberMatch) {
+      facts.push({
+        subject: 'user',
+        predicate: 'noted_fact',
+        value: rememberMatch[1].trim(),
+        category: 'fact',
+        confidence: 0.95,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // 11. Important Dates (birthday, anniversary, deadline, exam)
+    const dateMatch = normalized.match(/(?:my\s+(?:birthday|anniversary|exam|deadline|flight))\s+is\s+(?:on\s+)?([a-zA-Z0-9\s,]+)/i);
+    if (dateMatch) {
+      const eventType = normalized.match(/(birthday|anniversary|exam|deadline|flight)/i)![1].toLowerCase();
+      facts.push({
+        subject: 'user',
+        predicate: `${eventType}_date`,
+        value: dateMatch[1].trim(),
+        category: 'fact',
+        confidence: 0.95,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // 12. Tech stack & Programming languages
+    const techMatch = normalized.match(/(?:i\s+use|we\s+use|my\s+primary\s+language\s+is|i\s+code\s+in)\s+([a-zA-Z0-9\s,]+)/i);
+    if (techMatch && /python|javascript|typescript|react|node|rust|go|java|c\+\+|sql|aws|docker|kubernetes/i.test(techMatch[1])) {
+      facts.push({
+        subject: 'user',
+        predicate: 'tech_stack',
+        value: techMatch[1].trim(),
+        category: 'preference',
+        confidence: 0.94,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // 13. Travel & Vacation Plans
+    const travelMatch = normalized.match(/(?:traveling\s+to|trip\s+to|visit(?:ing)?|vacation\s+in)\s+([a-zA-Z\s]+?)(?:\s+in\s+([a-zA-Z]+))?(?:\.|$)/i);
+    if (travelMatch) {
+      const dest = travelMatch[1].trim();
+      const time = travelMatch[2] ? ` in ${travelMatch[2].trim()}` : '';
+      facts.push({
+        subject: 'user',
+        predicate: 'travel_plan',
+        value: `Trip to ${dest}${time}`,
+        category: 'plan',
+        confidence: 0.92,
+        source_type: 'explicit_statement',
+      });
+    }
+
+    // 14. Pets
+    const petMatch = normalized.match(/(?:my\s+(?:dog|cat|pet)|i\s+have\s+a\s+(?:dog|cat|pet))\s+(?:named|is)?\s*([a-zA-Z0-9\s]+)/i);
+    if (petMatch) {
+      facts.push({
+        subject: 'user',
+        predicate: 'pet',
+        value: petMatch[0].trim(),
+        category: 'fact',
+        confidence: 0.95,
+        source_type: 'explicit_statement',
+      });
+    }
+
     return facts;
   }
 

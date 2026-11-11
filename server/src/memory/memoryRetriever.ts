@@ -68,6 +68,27 @@ export class MemoryRetriever {
       const storageMems = this.memoryRepo.getBySubjectAndPredicate('laptop', 'storage');
       candidates.push(...specMems, ...procMems, ...genSpecMems, ...ramMems, ...storageMems);
     }
+    // Location, work, personal profile & lifestyle intents
+    if (/live|location|city|based\s+in/i.test(lower)) {
+      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'location'));
+    }
+    if (/company|work|job|profession|role/i.test(lower)) {
+      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'profession'));
+      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'company'));
+    }
+    if (/birthday|anniversary|exam|deadline|date/i.test(lower)) {
+      const allActive = this.memoryRepo.getAll({ onlyActive: true, limit: 20 });
+      candidates.push(...allActive.filter(m => m.predicate.endsWith('_date')));
+    }
+    if (/pet|dog|cat/i.test(lower)) {
+      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'pet'));
+    }
+    if (/travel|trip|vacation|visit/i.test(lower)) {
+      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'travel_plan'));
+    }
+    if (/tech|language|code|stack|programming/i.test(lower)) {
+      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'tech_stack'));
+    }
     // Broad recall for user needs, plans, preferences, or general memory inquiry
     if (
       /need|requirement|plan|prefer|discussed|told you|what do you know|remember|conservations|conversations|everything|about me|history/i.test(
