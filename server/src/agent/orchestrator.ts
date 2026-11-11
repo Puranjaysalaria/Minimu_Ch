@@ -154,6 +154,7 @@ export class AgentOrchestrator {
           }
         }
       } catch (err: any) {
+        console.error('Gemini generate error:', err);
         // Graceful resilience if external model is unavailable (503 / network / rate limit)
         finalAnswer = this.generateDeterministicFallback(userMessage, retrieval);
       }
@@ -207,19 +208,33 @@ export class AgentOrchestrator {
 
     const topMemory = retrieval.scoredMemories[0].memory;
 
-    // 2. Laptop brand preference recall
-    if (/brand/i.test(lower) && topMemory.predicate === 'preferred_laptop_brand') {
+    // 2. Laptop brand preference recall (specific query)
+    if (/brand/i.test(lower) && !/need|plan|budget|price|all|what are/i.test(lower) && topMemory.predicate === 'preferred_laptop_brand') {
       return `You preferred ${topMemory.value}.`;
     }
 
-    // 3. Laptop budget recall
-    if (/budget/i.test(lower) && topMemory.predicate === 'budget') {
+    // 3. Laptop budget recall (specific query)
+    if (/budget/i.test(lower) && !/need|plan|brand|price|all|what are/i.test(lower) && topMemory.predicate === 'budget') {
       return `Your previously mentioned budget was ${topMemory.value}.`;
     }
 
-    // 4. Subscription price recall
-    if (/price|subscription|cost/i.test(lower) && topMemory.predicate === 'price_per_month') {
+    // 4. Subscription price recall (specific query)
+    if (/subscription/i.test(lower) && topMemory.predicate === 'price_per_month') {
       return `The previously discussed subscription price was ${topMemory.value} (recorded on ${topMemory.recorded_at.slice(0, 10)}).`;
+    }
+
+    // 5. Broad needs, plans, and preferences recall with timestamps
+    if (/need|plan|require|prefer|discussed|conservations|conversations|what did|what are|time|when/i.test(lower) || retrieval.scoredMemories.length > 1) {
+      const bulletPoints = retrieval.scoredMemories.map(item => {
+        const m = item.memory;
+        const recDate = new Date(m.recorded_at);
+        const dateStr = recDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const timeStr = recDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const label = m.predicate.replace(/_/g, ' ');
+        return `• **${m.subject} ${label}**: ${m.value} *(Recorded on ${dateStr} at ${timeStr})*`;
+      });
+
+      return `Based on your previous conversations, here is what you shared regarding your needs and preferences:\n\n${bulletPoints.join('\n')}`;
     }
 
     // General memory response

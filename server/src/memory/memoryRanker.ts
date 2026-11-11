@@ -68,6 +68,12 @@ export class MemoryRanker {
         score += 25;
         matchReasons.push('Intent: laptop product');
       }
+      if (/need|requirement|plan|discussed|history|conservations|conversations/i.test(queryLower)) {
+        if (/plan|budget|preference|requirement/i.test(mem.category)) {
+          score += 25;
+          matchReasons.push(`Category matches broad need: ${mem.category}`);
+        }
+      }
 
       // 3. Temporal relevance
       if (temporal.isTemporal) {

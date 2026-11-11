@@ -55,6 +55,16 @@ export class MemoryRetriever {
       const subMems = this.memoryRepo.getBySubjectAndPredicate('subscription', 'price_per_month');
       candidates.push(...subMems);
     }
+    // Broad recall for user needs, plans, preferences, or general memory inquiry
+    if (
+      /need|requirement|plan|prefer|discussed|told you|what do you know|remember|conservations|conversations|everything|about me|history/i.test(
+        lower
+      ) ||
+      candidates.length === 0
+    ) {
+      const activeMems = this.memoryRepo.getAll({ onlyActive: true, limit: 10 });
+      candidates.push(...activeMems);
+    }
 
     // 5. Rank and filter top candidates
     const scoredMemories = this.ranker.rank(candidates, query, temporal, 6);
