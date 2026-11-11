@@ -123,10 +123,12 @@ export class AgentOrchestrator {
             const call = response.functionCalls[0];
             toolCallsCount++;
 
-            // Append model turn with function call
+            // Append model turn with exact model parts (preserving thoughtSignature)
             contents.push({
               role: 'model',
-              parts: [{ functionCall: { name: call.name, args: call.args } }],
+              parts: response.rawParts && response.rawParts.length > 0
+                ? response.rawParts
+                : [{ functionCall: { name: call.name, args: call.args } }],
             });
 
             // Execute tool (web_search)
@@ -228,8 +230,8 @@ export class AgentOrchestrator {
       return `You previously bookmarked the source: **${topMemory.value}** (recorded on ${topMemory.recorded_at.slice(0, 10)}).`;
     }
 
-    // 5. Broad needs, plans, and preferences recall with timestamps
-    if (/need|plan|require|prefer|discussed|conservations|conversations|what did|what are|time|when/i.test(lower) || retrieval.scoredMemories.length > 1) {
+    // 5. Broad needs, plans, and preferences recall with timestamps (only when asked)
+    if (/need|plan|require|prefer|discussed|conservations|conversations|what did|what are|time|when|remember|history|my specs/i.test(lower)) {
       const bulletPoints = retrieval.scoredMemories.map(item => {
         const m = item.memory;
         const recDate = new Date(m.recorded_at);

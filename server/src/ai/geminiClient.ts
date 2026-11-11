@@ -30,6 +30,7 @@ export interface GenerateContentResult {
     name: string;
     args: Record<string, unknown>;
   }>;
+  rawParts?: any[];
 }
 
 // Mock handler for deterministic offline tests
@@ -45,7 +46,7 @@ export class GeminiClient {
   private modelName: string;
 
   constructor() {
-    this.modelName = config.geminiModel || 'gemini-3.6-flash';
+    this.modelName = config.geminiModel || 'gemini-3.5-flash-lite';
     if (config.geminiApiKey) {
       this.ai = new GoogleGenAI({
         apiKey: config.geminiApiKey,
@@ -71,13 +72,9 @@ export class GeminiClient {
     const contents = params.contents.map(c => ({
       role: c.role,
       parts: c.parts.map(p => {
-        if (p.functionCall) {
-          return { functionCall: p.functionCall };
-        }
-        if (p.functionResponse) {
-          return { functionResponse: p.functionResponse };
-        }
-        return { text: p.text || '' };
+        // Pass through part object properties directly to preserve thoughtSignature and SDK fields
+        const partObj: Record<string, any> = { ...p };
+        return partObj;
       }),
     }));
 
@@ -97,9 +94,12 @@ export class GeminiClient {
         args: (fc.args as Record<string, unknown>) || {},
       }));
 
+    const rawParts = response.candidates?.[0]?.content?.parts || [];
+
     return {
       text: response.text || '',
       functionCalls: functionCalls && functionCalls.length > 0 ? functionCalls : undefined,
+      rawParts: rawParts.length > 0 ? rawParts : undefined,
     };
   }
 }
