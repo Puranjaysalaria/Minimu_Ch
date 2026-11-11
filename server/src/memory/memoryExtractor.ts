@@ -42,7 +42,7 @@ export class MemoryExtractor {
     // 2. Budget / Price for laptop or item
     const budgetMatch = normalized.match(/budget\s+(?:is|was|of)?\s*([₹$€£]?\s*[\d,]+(?:\s*(?:k|thousand|lakh|crore))?)/i);
     if (budgetMatch) {
-      const budgetVal = budgetMatch[1].trim();
+      const budgetVal = budgetMatch[1].replace(/^[,\s;:]+|[,\s;:]+$/g, '').trim();
       facts.push({
         subject: 'laptop',
         predicate: 'budget',
@@ -59,7 +59,7 @@ export class MemoryExtractor {
       facts.push({
         subject: 'subscription',
         predicate: 'price_per_month',
-        value: subNowMatch[1].trim(),
+        value: subNowMatch[1].replace(/^[,\s;:]+|[,\s;:]+$/g, '').trim(),
         category: 'correction',
         confidence: 0.98,
         source_type: 'explicit_statement',
@@ -71,7 +71,7 @@ export class MemoryExtractor {
         facts.push({
           subject: 'subscription',
           predicate: 'price_per_month',
-          value: subPriceMatch[1].trim(),
+          value: subPriceMatch[1].replace(/^[,\s;:]+|[,\s;:]+$/g, '').trim(),
           category: 'fact',
           confidence: 0.98,
           source_type: 'explicit_statement',
@@ -106,12 +106,12 @@ export class MemoryExtractor {
     }
 
     // 6. Plans: "I am planning to X"
-    const planMatch = normalized.match(/(?:i\s+am|i'm)\s+planning\s+to\s+([^\.]+)/i);
+    const planMatch = normalized.match(/(?:i\s+am|i'm)\s+planning\s+to\s+([^,.;]+)/i);
     if (planMatch) {
       facts.push({
         subject: 'user',
         predicate: 'plan',
-        value: planMatch[1].trim(),
+        value: planMatch[1].replace(/^[,\s;:]+|[,\s;:]+$/g, '').trim(),
         category: 'plan',
         confidence: 0.90,
         source_type: 'explicit_statement',
@@ -128,7 +128,7 @@ export class MemoryExtractor {
         subject: 'laptop',
         predicate: 'gpu_specs',
         value: cleanGpu,
-        category: 'requirement',
+        category: 'preference',
         confidence: 0.98,
         source_type: 'explicit_statement',
       });
@@ -143,7 +143,7 @@ export class MemoryExtractor {
         subject: 'laptop',
         predicate: 'processor',
         value: cpuVal.trim(),
-        category: 'requirement',
+        category: 'preference',
         confidence: 0.96,
         source_type: 'explicit_statement',
       });
@@ -156,7 +156,7 @@ export class MemoryExtractor {
         subject: 'laptop',
         predicate: 'ram',
         value: `${ramMatch[1].trim()} RAM`,
-        category: 'requirement',
+        category: 'preference',
         confidence: 0.95,
         source_type: 'explicit_statement',
       });
@@ -169,23 +169,26 @@ export class MemoryExtractor {
         subject: 'laptop',
         predicate: 'storage',
         value: `${storageMatch[1].trim()} SSD`,
-        category: 'requirement',
+        category: 'preference',
         confidence: 0.95,
         source_type: 'explicit_statement',
       });
     }
 
-    // General specifications: "specific specs: RTX 5060", "specs are ..."
-    const generalSpecMatch = normalized.match(/(?:specific\s+)?specs?\s*(?:are|is|want|need|of)?\s*:?\s*([^.\n]+)/i);
+    // General specifications: e.g. "specs: 144Hz screen, 32GB RAM"
+    const generalSpecMatch = normalized.match(/\b(?:specific\s+)?(?:specs?|specifications?)\s*(?:are|is|want|need|of)?\s*:?\s*([^.\n]+)/i);
     if (generalSpecMatch && !gpuMatch && !cpuVal) {
-      facts.push({
-        subject: 'laptop',
-        predicate: 'specs',
-        value: generalSpecMatch[1].trim(),
-        category: 'requirement',
-        confidence: 0.92,
-        source_type: 'explicit_statement',
-      });
+      const cleanSpec = generalSpecMatch[1].trim();
+      if (!/recorded|saved|mentioned|database|audit/i.test(cleanSpec)) {
+        facts.push({
+          subject: 'laptop',
+          predicate: 'specs',
+          value: cleanSpec,
+          category: 'preference',
+          confidence: 0.92,
+          source_type: 'explicit_statement',
+        });
+      }
     }
 
     // 7. Bookmarks / Saved web sources in assistant confirmations or user notes
@@ -256,21 +259,24 @@ export class MemoryExtractor {
       }
     }
 
-    // 8. Location & City
-    const locationMatch = normalized.match(/(?:i\s+live\s+in|i'm\s+based\s+in|i\s+moved\s+to|located\s+in)\s+([a-zA-Z\s]+)/i);
+    // 8. Location & City (e.g. "I live in Bengaluru and work at...") -> captures ONLY city name
+    const locationMatch = normalized.match(/(?:i\s+live\s+in|i'm\s+based\s+in|i\s+moved\s+to|located\s+in)\s+([a-zA-Z\s]+?)(?=\s+(?:and|with|work|at|my|,|\.|$))/i);
     if (locationMatch && !/buying|laptop|finding/i.test(locationMatch[1])) {
-      facts.push({
-        subject: 'user',
-        predicate: 'location',
-        value: locationMatch[1].trim(),
-        category: 'fact',
-        confidence: 0.95,
-        source_type: 'explicit_statement',
-      });
+      const city = locationMatch[1].trim();
+      if (city.length > 1 && !/and\s+/i.test(city)) {
+        facts.push({
+          subject: 'user',
+          predicate: 'location',
+          value: city,
+          category: 'fact',
+          confidence: 0.95,
+          source_type: 'explicit_statement',
+        });
+      }
     }
 
     // 9. Profession / Role / Company
-    const workMatch = normalized.match(/(?:i\s+work\s+as\s+(?:an?|the)?|i\s+am\s+(?:an?|the)?)\s+([a-zA-Z\s]+?)(?:\s+at\s+([a-zA-Z0-9\s]+))?(?:\.|$)/i);
+    const workMatch = normalized.match(/(?:i\s+work\s+as\s+(?:an?|the)?|i\s+am\s+(?:an?|the)?)\s+([a-zA-Z\s]+?)(?=\s+(?:at|for|in|and|,|\.|$))/i);
     if (workMatch && !/planning|hoping|looking|wanting|trying/i.test(workMatch[1])) {
       const role = workMatch[1].trim();
       if (/engineer|developer|designer|manager|student|architect|scientist|doctor|consultant|founder|analyst|writer|photographer/i.test(role)) {
@@ -282,28 +288,23 @@ export class MemoryExtractor {
           confidence: 0.95,
           source_type: 'explicit_statement',
         });
-        if (workMatch[2]) {
-          facts.push({
-            subject: 'user',
-            predicate: 'company',
-            value: workMatch[2].trim(),
-            category: 'fact',
-            confidence: 0.95,
-            source_type: 'explicit_statement',
-          });
-        }
       }
     }
-    const companyMatch = normalized.match(/(?:i\s+work\s+at|my\s+company\s+is)\s+([a-zA-Z0-9\s]+)/i);
+
+    // Company: "I work at Minimi", "I work for Google", "my company is X"
+    const companyMatch = normalized.match(/(?:i\s+work\s+at|i\s+work\s+for|my\s+company\s+is|joined|employed\s+at)\s+([a-zA-Z0-9\s]+?)(?=\s+(?:as|and|in|with|,|\.|$))/i);
     if (companyMatch) {
-      facts.push({
-        subject: 'user',
-        predicate: 'company',
-        value: companyMatch[1].trim(),
-        category: 'fact',
-        confidence: 0.95,
-        source_type: 'explicit_statement',
-      });
+      const comp = companyMatch[1].trim();
+      if (comp.length > 1) {
+        facts.push({
+          subject: 'user',
+          predicate: 'company',
+          value: comp,
+          category: 'fact',
+          confidence: 0.95,
+          source_type: 'explicit_statement',
+        });
+      }
     }
 
     // 10. Explicit "Remember that X", "Keep in mind that X", "Note that X"
@@ -401,10 +402,12 @@ export class MemoryExtractor {
         supersedesId = existing[0].id;
       }
 
+      const cleanValue = fact.value.replace(/^[,\s;:]+|[,\s;:]+$/g, '').trim();
+
       const record = this.memoryRepo.create({
         subject: fact.subject,
         predicate: fact.predicate,
-        value: fact.value,
+        value: cleanValue,
         category: fact.category,
         confidence: fact.confidence,
         source_type: fact.source_type,

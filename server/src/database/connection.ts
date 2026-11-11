@@ -125,10 +125,7 @@ export function getDatabase(customPath?: string): IDatabase {
     db = nodeDb;
   }
 
-  if (!customPath) {
-    dbInstance = db;
-  }
-
+  dbInstance = db;
   return db;
 }
 

@@ -48,11 +48,19 @@ export class MemoryRepository {
       WHERE id = ? AND (valid_until IS NULL OR valid_until > ?)
     `);
 
+    const updateAllOlderActive = this.db.prepare(`
+      UPDATE memories
+      SET valid_until = ?
+      WHERE LOWER(subject) = LOWER(?) AND LOWER(predicate) = LOWER(?) AND id != ? AND (valid_until IS NULL OR valid_until > ?)
+    `);
+
     this.db.transaction(() => {
       // If this record supersedes an older record, set old record's valid_until
       if (supersedes_id) {
         updateSuperseded.run(valid_from, supersedes_id, valid_from);
       }
+      // Ensure all older active records for this exact subject and predicate are retired
+      updateAllOlderActive.run(valid_from, record.subject, record.predicate, id, valid_from);
 
       insertMem.run(
         id,

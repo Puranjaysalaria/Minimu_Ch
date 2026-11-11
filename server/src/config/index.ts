@@ -7,6 +7,10 @@ dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config(); // fallback
 
+const rootDir = process.cwd().endsWith('server')
+  ? path.resolve(process.cwd(), '..')
+  : process.cwd();
+
 export interface AppConfig {
   port: number;
   nodeEnv: string;
@@ -24,7 +28,10 @@ export const config: AppConfig = {
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
   tavilyApiKey: process.env.TAVILY_API_KEY || '',
-  databasePath: process.env.DATABASE_PATH || './data/minimi.db',
+  databasePath:
+    process.env.NODE_ENV === 'test' || process.env.VITEST
+      ? ':memory:'
+      : path.resolve(rootDir, process.env.DATABASE_PATH || 'data/minimi.db'),
   appTimezone: process.env.APP_TIMEZONE || 'Asia/Kolkata',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 };

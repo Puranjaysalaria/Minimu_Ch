@@ -65,8 +65,8 @@ export class ConversationService {
 
     let extractedMemories: MemoryRecord[] = [];
 
-    // Extract facts from user statements or factual assistant confirmations
-    if (params.role === 'user' || params.role === 'assistant') {
+    // Extract facts strictly from explicit user statements (never from assistant-generated text)
+    if (params.role === 'user') {
       extractedMemories = this.extractor.processAndSave(
         params.content,
         params.conversationId,

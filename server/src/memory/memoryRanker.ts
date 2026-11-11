@@ -119,10 +119,21 @@ export class MemoryRanker {
           }
         }
       } else {
-        // When no temporal filter is specified, active records (valid_until IS NULL) get a slight recency boost
-        if (!mem.valid_until) {
-          score += 10;
-          matchReasons.push('Active current fact');
+        const isHistoricalInquiry = /previous|past|history|earlier|before|initial|was\s+my|first/i.test(queryLower);
+        if (isHistoricalInquiry) {
+          if (mem.valid_until || mem.supersedes_id) {
+            score += 35;
+            matchReasons.push('Historical/past fact inquiry');
+          }
+        } else {
+          // When current state is queried, active records get a strong boost and superseded records are demoted
+          if (!mem.valid_until) {
+            score += 40;
+            matchReasons.push('Active current fact');
+          } else {
+            score -= 30;
+            matchReasons.push('Demoted superseded historical fact');
+          }
         }
       }
 

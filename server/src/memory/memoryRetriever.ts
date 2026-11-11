@@ -72,9 +72,11 @@ export class MemoryRetriever {
     if (/live|location|city|based\s+in/i.test(lower)) {
       candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'location'));
     }
-    if (/company|work|job|profession|role/i.test(lower)) {
-      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'profession'));
+    if (/company|where.*(?:do\s+i\s+)?work|employer/i.test(lower)) {
       candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'company'));
+    }
+    if (/profession|job|role|work\s+as|what.*do for a living/i.test(lower)) {
+      candidates.push(...this.memoryRepo.getBySubjectAndPredicate('user', 'profession'));
     }
     if (/birthday|anniversary|exam|deadline|date/i.test(lower)) {
       const allActive = this.memoryRepo.getAll({ onlyActive: true, limit: 20 });
@@ -101,7 +103,24 @@ export class MemoryRetriever {
     }
 
     // 5. Rank and filter top candidates
-    const scoredMemories = this.ranker.rank(candidates, query, temporal, 6);
+    let scoredMemories = this.ranker.rank(candidates, query, temporal, 12);
+
+    const isHistorical = temporal.isTemporal || /previous|past|history|earlier|before|initial|change|timeline|was\s+my/i.test(lower);
+    if (!isHistorical) {
+      // For current-state queries, deduplicate by (subject, predicate) so we don't dump multiple iterations of the same fact
+      const seenKey = new Set<string>();
+      const deduped: ScoredMemory[] = [];
+      for (const sm of scoredMemories) {
+        const key = `${sm.memory.subject.toLowerCase()}:${sm.memory.predicate.toLowerCase()}`;
+        if (!seenKey.has(key)) {
+          seenKey.add(key);
+          deduped.push(sm);
+        }
+      }
+      scoredMemories = deduped.slice(0, 6);
+    } else {
+      scoredMemories = scoredMemories.slice(0, 6);
+    }
 
     // 6. Build structured context string for Gemini
     const hasRelevantMemory = scoredMemories.length > 0;
